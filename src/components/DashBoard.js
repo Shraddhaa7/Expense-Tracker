@@ -48,46 +48,47 @@ const Dashboard = () => {
 
   const categories = ["Food", "Travel", "Shopping", "Utilities", "Other"];
 
-  useEffect(() => {
-    const fetchUserName = async () => {
-      if (auth.currentUser) {
-        const userInfoRef = doc(
-          db,
-          "users",
-          auth.currentUser.uid,
-          "userInfo",
-          "default"
-        );
-        const userInfoDoc = await getDoc(userInfoRef);
-        if (userInfoDoc.exists()) {
-          setUserName(userInfoDoc.data().name || "User");
-        }
-      }
-    };
-
-    fetchUserName();
-
+useEffect(() => {
+  const fetchUserName = async () => {
     if (auth.currentUser) {
-      const userExpensesRef = collection(
+      const userInfoRef = doc(
         db,
         "users",
         auth.currentUser.uid,
-        "expenses"
+        "userInfo",
+        "default"
       );
-
-      const unsubscribe = onSnapshot(userExpensesRef, (snapshot) => {
-        const expenseData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        expenseData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setExpenses(expenseData);
-      });
-
-      return () => unsubscribe();
+      const userInfoDoc = await getDoc(userInfoRef);
+      if (userInfoDoc.exists()) {
+        setUserName(userInfoDoc.data().name || "User");
+      }
     }
-  }, []);
+  };
 
+  fetchUserName();
+
+  if (auth.currentUser) {
+    const userExpensesRef = collection(
+      db,
+      "users",
+      auth.currentUser.uid,
+      "expenses"
+    );
+
+    const unsubscribe = onSnapshot(userExpensesRef, (snapshot) => {
+      const expenseData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Sort expenses by createdAt in descending order
+      expenseData.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setExpenses(expenseData);
+    });
+
+    return () => unsubscribe();
+  }
+}, []);
   
   const handleAddExpense = async () => {
     if (!title || !amount || !category || !date) {
@@ -102,15 +103,15 @@ const Dashboard = () => {
       "expenses"
     );
 
-    const expenseData = {
-      title,
-      amount: parseFloat(amount),
-      category,
-      date,
-      comments,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+   const expenseData = {
+    title,
+    amount: parseFloat(amount),
+    category,
+    date,
+    comments: comments || " ", 
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
     try {
       if (editingId) {
@@ -257,11 +258,11 @@ const Dashboard = () => {
               fullWidth
             />
             <TextField
-              label="Comments"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              fullWidth
-            />
+  label="Comments (Optional)"
+  value={comments}
+  onChange={(e) => setComments(e.target.value)}
+  fullWidth
+/>
             <IconButton
   color="primary"
   onClick={handleAddExpense}
@@ -284,7 +285,7 @@ const Dashboard = () => {
             <TableCell>Title</TableCell>
             <TableCell>Amount</TableCell>
             <TableCell>Category</TableCell>
-            <TableCell>Date</TableCell>
+            <TableCell>Created At</TableCell>
             <TableCell>Comments</TableCell>
             <TableCell>Actions</TableCell>
           </TableRow>
