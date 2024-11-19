@@ -13,25 +13,40 @@ import {
   Box,
   Typography,
   TextField,
-  Button,
-  List,
-  ListItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  MenuItem,
   IconButton,
-  Switch,
+
 } from "@mui/material";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import { Delete, Edit } from "@mui/icons-material";
 import { PieChart } from "@mui/x-charts/PieChart";
+import { ThemeProvider } from "@mui/material/styles";
+import { lightTheme, darkTheme } from "../theme";
+import SaveIcon from "@mui/icons-material/Save";
+import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from '@mui/icons-material/Add';
 
 const Dashboard = () => {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
   const [date, setDate] = useState("");
+  const [comments, setComments] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [userName, setUserName] = useState("User");
   const [isEditingName, setIsEditingName] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const categories = ["Food", "Travel", "Shopping", "Utilities", "Other"];
 
   useEffect(() => {
     const fetchUserName = async () => {
@@ -65,7 +80,7 @@ const Dashboard = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        expenseData.sort((a, b) => new Date(b.date) - new Date(a.date));
+        expenseData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setExpenses(expenseData);
       });
 
@@ -73,8 +88,12 @@ const Dashboard = () => {
     }
   }, []);
 
+  
   const handleAddExpense = async () => {
-    if (!title || !amount || !date) return alert("Please fill in all fields!");
+    if (!title || !amount || !category || !date) {
+      alert("Please fill in all fields!");
+      return;
+    }
 
     const userExpensesRef = collection(
       db,
@@ -82,6 +101,16 @@ const Dashboard = () => {
       auth.currentUser.uid,
       "expenses"
     );
+
+    const expenseData = {
+      title,
+      amount: parseFloat(amount),
+      category,
+      date,
+      comments,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
     try {
       if (editingId) {
@@ -92,14 +121,16 @@ const Dashboard = () => {
           "expenses",
           editingId
         );
-        await updateDoc(expenseDocRef, { title, amount: parseFloat(amount), date });
+        await updateDoc(expenseDocRef, { ...expenseData, updatedAt: new Date().toISOString() });
         setEditingId(null);
       } else {
-        await addDoc(userExpensesRef, { title, amount: parseFloat(amount), date });
+        await addDoc(userExpensesRef, expenseData);
       }
       setTitle("");
       setAmount("");
+      setCategory("");
       setDate("");
+      setComments("");
     } catch (error) {
       console.error("Error adding expense: ", error.message);
       alert("Error adding expense: " + error.message);
@@ -109,7 +140,9 @@ const Dashboard = () => {
   const handleEditExpense = (expense) => {
     setTitle(expense.title);
     setAmount(expense.amount);
+    setCategory(expense.category);
     setDate(expense.date);
+    setComments(expense.comments);
     setEditingId(expense.id);
   };
 
@@ -124,7 +157,10 @@ const Dashboard = () => {
   };
 
   const handleNameEdit = async () => {
-    if (!userName.trim()) return alert("Name cannot be empty.");
+    if (!userName.trim()) {
+      alert("Name cannot be empty.");
+      return;
+    }
     const userInfoDocRef = doc(db, "users", auth.currentUser.uid, "userInfo", "default");
     try {
       await updateDoc(userInfoDocRef, { name: userName });
@@ -135,46 +171,53 @@ const Dashboard = () => {
     }
   };
 
-  const totalExpense = expenses.reduce((total, expense) => total + expense.amount, 0);
-
-  const pieChartData = expenses.map((expense) => ({
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+   const pieChartData = expenses.map((expense) => ({
     id: expense.id,
     label: expense.title,
     value: expense.amount,
   }));
 
-  const theme = createTheme({
-    palette: {
-      mode: darkMode ? "dark" : "light",
-    },
-  });
-
   return (
-    <ThemeProvider theme={theme}>
-      <Box p={2}>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h4">
-            Hi, {isEditingName ? (
-              <TextField
-                variant="outlined"
-                size="small"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                onBlur={handleNameEdit}
-              />
-            ) : (
-              userName
-            )}
-          </Typography>
-          <Button onClick={() => setIsEditingName(!isEditingName)}>
-            {isEditingName ? "Save" : "Edit Name"}
-          </Button>
-          <Switch
-            checked={darkMode}
-            onChange={() => setDarkMode(!darkMode)}
-            color="default"
-          />
-        </Box>
+    <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "background.default",
+          color: "text.primary",
+          padding: 4,
+          position: "relative",
+        }}
+      >
+        <IconButton
+          onClick={toggleTheme}
+          sx={{ position: "absolute", top: 16, right: 16 }}
+        >
+          {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+        </IconButton>
+        <Box display="flex" justifyContent="flex-start" alignItems="center" mb={4}>
+  <Box display="flex" alignItems="center" gap={1}>
+    <Typography variant="h4">
+      Hi, {isEditingName ? (
+        <TextField
+          variant="outlined"
+          size="small"
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+          onBlur={handleNameEdit}
+        />
+      ) : (
+        userName
+      )}
+    </Typography>
+    <IconButton
+      onClick={() => setIsEditingName(!isEditingName)}
+      color="primary"
+    >
+      {isEditingName ? <SaveIcon /> : <EditIcon />}
+    </IconButton>
+  </Box>
+</Box>
 
         <Box my={2}>
           <Typography variant="h6">Add Expense</Typography>
@@ -193,6 +236,19 @@ const Dashboard = () => {
               fullWidth
             />
             <TextField
+              select
+              label="Category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              fullWidth
+            >
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat}>
+                  {cat}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
               label="Date"
               type="date"
               InputLabelProps={{ shrink: true }}
@@ -200,51 +256,97 @@ const Dashboard = () => {
               onChange={(e) => setDate(e.target.value)}
               fullWidth
             />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleAddExpense}
-            >
-              {editingId ? "Update" : "Add"}
-            </Button>
+            <TextField
+              label="Comments"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              fullWidth
+            />
+            <IconButton
+  color="primary"
+  onClick={handleAddExpense}
+  sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+>
+  {editingId ? <EditIcon /> : <AddIcon />} {/* Edit or Add icon depending on editing state */}
+</IconButton>
           </Box>
         </Box>
-
-        <List>
+<Box sx={{ display: "flex", alignItems: "stretch", justifyContent: "space-between" }}>
+  {/* Table Section */}
+  <Box flex={1} mr={2}>
+    <Typography variant="h5" gutterBottom>
+      Expenses
+    </Typography>
+    <TableContainer component={Paper}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Title</TableCell>
+            <TableCell>Amount</TableCell>
+            <TableCell>Category</TableCell>
+            <TableCell>Date</TableCell>
+            <TableCell>Comments</TableCell>
+            <TableCell>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {expenses.map((expense) => (
-            <ListItem
-              key={expense.id}
-              secondaryAction={
-                <Box>
-                  <IconButton onClick={() => handleEditExpense(expense)}>
-                    <Edit />
-                  </IconButton>
-                  <IconButton onClick={() => handleDeleteExpense(expense.id)}>
-                    <Delete />
-                  </IconButton>
-                </Box>
-              }
-            >
-              <Typography>
-                {expense.date}: {expense.title} - ₹{expense.amount}
-              </Typography>
-            </ListItem>
+            <TableRow key={expense.id}>
+              <TableCell>{expense.title}</TableCell>
+              <TableCell>{expense.amount}</TableCell>
+              <TableCell>{expense.category}</TableCell>
+              <TableCell>{expense.date}</TableCell>
+              <TableCell>{expense.comments}</TableCell>
+              <TableCell>
+                <IconButton onClick={() => handleEditExpense(expense)}>
+                  <Edit />
+                </IconButton>
+                <IconButton onClick={() => handleDeleteExpense(expense.id)}>
+                  <Delete />
+                </IconButton>
+              </TableCell>
+            </TableRow>
           ))}
-        </List>
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </Box>
 
-        <Box mt={4}>
-          <Typography variant="h6">Expense Breakdown</Typography>
-          <PieChart
-            series={[
-              {
-                data: pieChartData,
-              },
-            ]}
-            width={600}
-            height={400}
-          />
-        </Box>
+  {/* Black Line Separator */}
+<Box
+  sx={{
+    borderLeft: "2px solid #ccc",
+    boxShadow: "inset 4px 0px 8px rgba(0, 0, 0, 0.1)",
+    height: "auto",
+    mx: 4,
+  }}
+/>
+
+  {/* Pie Chart Section */}
+  <Box flex={1} textAlign="centre" >
+    <Typography variant="h5" gutterBottom marginBottom={5}>
+      Expense Breakdown
+    </Typography>
+    <PieChart
+      series={[
+        {
+          data: pieChartData,
+      paddingAngle:1,
+      cornerRadius:3,    
+      cx: 200,
+      cy: 150,
+        },
+      ]}
+      width={500}
+      height={300}
+
+      
+    />
+  </Box>
+</Box>
+
       </Box>
+      
     </ThemeProvider>
   );
 };
