@@ -173,11 +173,24 @@ useEffect(() => {
   };
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
-   const pieChartData = expenses.map((expense) => ({
-    id: expense.id,
-    label: expense.title,
-    value: expense.amount,
+ const getAggregatedPieChartData = () => {
+  const categoryTotals = expenses.reduce((acc, expense) => {
+    if (expense.category in acc) {
+      acc[expense.category] += expense.amount;
+    } else {
+      acc[expense.category] = expense.amount;
+    }
+    return acc;
+  }, {});
+
+
+  return Object.entries(categoryTotals).map(([category, total]) => ({
+    label: category,
+    value: total,
   }));
+};
+
+const pieChartData = getAggregatedPieChartData();
 
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
